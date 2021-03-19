@@ -42,7 +42,7 @@ extern "C" {
  * @param flash_device Flash Device
  */
 struct nvs_fs {
-	off_t offset;		/* filesystem offset in flash */
+	int offset;		/* filesystem offset in flash */
 	uint32_t ate_wra;		/* next alloc table entry write address */
 	uint32_t data_wra;		/* next data write address */
 	uint16_t sector_size;	/* filesystem is divided into sectors,

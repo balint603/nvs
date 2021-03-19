@@ -11,7 +11,9 @@
 #include <inttypes.h>
 #include <nvs.h>
 #include "nvs_priv.h"
+#include "shell.h"
 
+const char *TAG = "NVS";
 
 /* basic routines */
 /* nvs_al_size returns size aligned to fs->write_block_size */
@@ -734,45 +736,38 @@ int nvs_init(struct nvs_fs *fs, const char *dev_name)
 {
 
 	int rc;
-	struct flash_pages_info info;
-	size_t write_block_size;
+	//struct flash_pages_info info;
+	size_t pagesize;
 
 	k_mutex_init(&fs->nvs_lock);
 
-	fs->flash_device = device_get_binding(dev_name);
+	/*fs->flash_device = device_get_binding(dev_name);
 	if (!fs->flash_device) {
 		LOG_ERR("No valid flash device found");
 		return -ENXIO;
-	}
+	} */
 
-	fs->flash_parameters = flash_get_parameters(fs->flash_device);
+	fs->flash_parameters = flash_get_parameters();
 	if (fs->flash_parameters == NULL) {
-		LOG_ERR("Could not obtain flash parameters");
+		sh_log_printf(TAG, "Could not obtain flash parameters");
 		return -EINVAL;
 	}
 
-	write_block_size = flash_get_write_block_size(fs->flash_device);
-
 	/* check that the write block size is supported */
-	if (write_block_size > NVS_BLOCK_SIZE || write_block_size == 0) {
-		LOG_ERR("Unsupported write block size");
+	if (FLASH_WRITE_BLOCK_SIZE > NVS_BLOCK_SIZE || FLASH_WRITE_BLOCK_SIZE == 0) {
+		sh_log_printf(TAG, "Unsupported write block size");
 		return -EINVAL;
 	}
 
 	/* check that sector size is a multiple of pagesize */
-	rc = flash_get_page_info_by_offs(fs->flash_device, fs->offset, &info);
-	if (rc) {
-		LOG_ERR("Unable to get page info");
-		return -EINVAL;
-	}
-	if (!fs->sector_size || fs->sector_size % info.size) {
-		LOG_ERR("Invalid sector size");
+	if (!fs->sector_size || fs->sector_size % FLASH_PAGE_SIZE) {
+		sh_log_printf(TAG, "Invalid sector size");
 		return -EINVAL;
 	}
 
 	/* check the number of sectors, it should be at least 2 */
 	if (fs->sector_count < 2) {
-		LOG_ERR("Configuration error - sector count");
+		sh_log_printf(TAG, "Configuration error - sector count");
 		return -EINVAL;
 	}
 
@@ -784,11 +779,11 @@ int nvs_init(struct nvs_fs *fs, const char *dev_name)
 	/* nvs is ready for use */
 	fs->ready = true;
 
-	LOG_INF("%d Sectors of %d bytes", fs->sector_count, fs->sector_size);
-	LOG_INF("alloc wra: %d, %x",
+	sh_log_printf(TAG, "%d Sectors of %d bytes", fs->sector_count, fs->sector_size);
+	sh_log_printf(TAG, "alloc wra: %d, %x",
 		(fs->ate_wra >> ADDR_SECT_SHIFT),
 		(fs->ate_wra & ADDR_OFFS_MASK));
-	LOG_INF("data wra: %d, %x",
+	sh_log_printf(TAG, "data wra: %d, %x",
 		(fs->data_wra >> ADDR_SECT_SHIFT),
 		(fs->data_wra & ADDR_OFFS_MASK));
 
