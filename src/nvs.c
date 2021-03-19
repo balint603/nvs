@@ -13,8 +13,6 @@
 #include "nvs_priv.h"
 #include "shell.h"
 
-const char *TAG = "NVS";
-
 /* basic routines */
 /* nvs_al_size returns size aligned to fs->write_block_size */
 static inline size_t nvs_al_size(struct nvs_fs *fs, size_t len)
@@ -246,7 +244,7 @@ static int nvs_flash_erase_sector(struct nvs_fs *fs, uint32_t addr)
 		/* flash protection set error */
 		return rc;
 	}
-	sh_log_printf(TAG, "Erasing flash at %lx, len %d", (long int) offset,
+	pr_info("Erasing flash at %lx, len %d", (long int) offset,
 		fs->sector_size);
 	rc = flash_erase(offset, fs->sector_size);
 	if (rc) {
@@ -342,7 +340,7 @@ static int nvs_recover_last_ate(struct nvs_fs *fs, uint32_t *addr)
 	size_t ate_size;
 	int rc;
 
-	sh_log_printf(TAG, "Recovering last ate from sector %d",
+	pr_info("Recovering last ate from sector %d",
 		(*addr >> ADDR_SECT_SHIFT));
 
 	ate_size = nvs_al_size(fs, sizeof(struct nvs_ate));
@@ -548,7 +546,7 @@ static int nvs_gc(struct nvs_fs *fs)
 		 */
 		if ((wlk_prev_addr == gc_prev_addr) && gc_ate.len) {
 			/* copy needed */
-			sh_log_printf(TAG, "Moving %d, len %d", gc_ate.id, gc_ate.len);
+			pr_info("Moving %d, len %d", gc_ate.id, gc_ate.len);
 
 			data_addr = (gc_prev_addr & ADDR_SECT_MASK);
 			data_addr += gc_ate.offset;
@@ -723,7 +721,7 @@ int nvs_clear(struct nvs_fs *fs)
 	uint32_t addr;
 
 	if (!fs->ready) {
-		sh_log_printf(TAG, "NVS not initialized");
+		pr_err("NVS not initialized");
 		return -EACCES;
 	}
 
@@ -752,25 +750,25 @@ int nvs_init(struct nvs_fs *fs, const char *dev_name)
 
 	fs->flash_parameters = flash_get_parameters();
 	if (fs->flash_parameters == NULL) {
-		sh_log_printf(TAG, "Could not obtain flash parameters");
+		pr_err("Could not obtain flash parameters");
 		return -EINVAL;
 	}
 
 	/* check that the write block size is supported */
 	if (FLASH_WRITE_BLOCK_SIZE > NVS_BLOCK_SIZE || FLASH_WRITE_BLOCK_SIZE == 0) {
-		sh_log_printf(TAG, "Unsupported write block size");
+		pr_err("Unsupported write block size");
 		return -EINVAL;
 	}
 
 	/* check that sector size is a multiple of pagesize */
 	if (!fs->sector_size || fs->sector_size % FLASH_PAGE_SIZE) {
-		sh_log_printf(TAG, "Invalid sector size");
+		pr_err("Invalid sector size");
 		return -EINVAL;
 	}
 
 	/* check the number of sectors, it should be at least 2 */
 	if (fs->sector_count < 2) {
-		sh_log_printf(TAG, "Configuration error - sector count");
+		pr_err("Configuration error - sector count");
 		return -EINVAL;
 	}
 
@@ -782,11 +780,11 @@ int nvs_init(struct nvs_fs *fs, const char *dev_name)
 	/* nvs is ready for use */
 	fs->ready = true;
 
-	sh_log_printf(TAG, "%d Sectors of %d bytes", fs->sector_count, fs->sector_size);
-	sh_log_printf(TAG, "alloc wra: %d, %x",
+	pr_info("%d Sectors of %d bytes", fs->sector_count, fs->sector_size);
+	pr_info("alloc wra: %d, %x",
 		(fs->ate_wra >> ADDR_SECT_SHIFT),
 		(fs->ate_wra & ADDR_OFFS_MASK));
-	sh_log_printf(TAG, "data wra: %d, %x",
+	pr_info("data wra: %d, %x",
 		(fs->data_wra >> ADDR_SECT_SHIFT),
 		(fs->data_wra & ADDR_OFFS_MASK));
 
@@ -803,7 +801,7 @@ size_t nvs_write(struct nvs_fs *fs, uint16_t id, const void *data, size_t len)
 	bool prev_found = false;
 
 	if (!fs->ready) {
-		sh_log_printf(TAG, "NVS not initialized");
+		pr_err("NVS not initialized");
 		return -EACCES;
 	}
 
@@ -928,7 +926,7 @@ size_t nvs_read_hist(struct nvs_fs *fs, uint16_t id, void *data, size_t len,
 	size_t ate_size;
 
 	if (!fs->ready) {
-		sh_log_printf(TAG, "NVS not initialized");
+		pr_err("NVS not initialized");
 		return -EACCES;
 	}
 
@@ -992,7 +990,7 @@ size_t nvs_calc_free_space(struct nvs_fs *fs)
 	size_t ate_size, free_space;
 
 	if (!fs->ready) {
-		sh_log_printf(TAG, "NVS not initialized");
+		pr_err("NVS not initialized");
 		return -EACCES;
 	}
 

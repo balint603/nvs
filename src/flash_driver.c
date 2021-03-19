@@ -7,8 +7,10 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "stm32f0xx_hal.h"
+#include "stm32f0xx_hal_flash_ex.h"
 #include "flash_driver.h"
 
 
@@ -22,16 +24,65 @@ const struct flash_parameters *flash_get_parameters() {
 }
 
 int flash_write_protection_set(bool lock) {
-	HAL_StatusTypeDef result;
-	result = (lock) ? HAL_FLASH_Lock() : HAL_FLASH_Unlock() ;
-	if ( result )										// todo If HAL_status busy then must wait a bit?
-		return -1;
-	else
-		return 0;
+	return (lock) ? HAL_FLASH_Lock() : HAL_FLASH_Unlock() ;
 }
 
 int flash_write(int offset, const void *data, size_t len) {
-	HAL_FLASH_Program(FLASH_WRITE_BLOCK_SIZE, offset, data);
+	if ( !data || !len )
+		return -1;
+	return HAL_FLASH_Program(FLASH_WRITE_BLOCK_SIZE, offset, *((uint64_t*)data));
 }
-int flash_read(int offset, void *data, size_t len);
-int flash_erase(int offset, size_t size);
+
+int flash_read(int offset, void *data, size_t len) {
+	if ( !data )
+		return -1;
+	if ( IS_FLASH_PROGRAM_ADDRESS(offset)
+	  && IS_FLASH_PROGRAM_ADDRESS(offset + len)) {
+		memcpy( data, (void *)(offset), len); // Random Flash memory access.
+	} else {
+		return -1;
+	}
+	return 0;
+}
+
+int flash_erase(int offset, size_t size) {
+	if ( !IS_FLASH_PROGRAM_ADDRESS(offset) )
+		return -1;
+	FLASH_EraseInitTypeDef erase_conf = {
+			.NbPages = 1,
+			.PageAddress = (offset),
+			.TypeErase = FLASH_TYPEERASE_PAGES
+	};
+	uint32_t page_error;
+	HAL_FLASHEx_Erase(&erase_conf, &page_error);
+	if ( page_error != 0xFFFFFFFF )
+		return -2;
+	return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
