@@ -35,7 +35,7 @@ static int nvs_flash_al_wrt(struct nvs_fs *fs, uint32_t addr, const void *data,
 {
 	const uint8_t *data8 = (const uint8_t *)data;
 	int rc = 0;
-	off_t offset;
+	int offset;
 	size_t blen;
 	uint8_t buf[NVS_BLOCK_SIZE];
 
@@ -87,7 +87,7 @@ static int nvs_flash_rd(struct nvs_fs *fs, uint32_t addr, void *data,
 			 size_t len)
 {
 	int rc;
-	off_t offset;
+	int offset;
 
 	offset = fs->offset;
 	offset += fs->sector_size * (addr >> ADDR_SECT_SHIFT);
@@ -225,7 +225,7 @@ static int nvs_flash_block_move(struct nvs_fs *fs, uint32_t addr, size_t len)
 static int nvs_flash_erase_sector(struct nvs_fs *fs, uint32_t addr)
 {
 	int rc;
-	off_t offset;
+	int offset;
 
 	addr &= ADDR_SECT_MASK;
 	rc = nvs_flash_cmp_const(fs, addr, fs->flash_parameters->erase_value,
@@ -718,7 +718,7 @@ int nvs_clear(struct nvs_fs *fs)
 	uint32_t addr;
 
 	if (!fs->ready) {
-		LOG_ERR("NVS not initialized");
+		sh_log_printf(TAG, "NVS not initialized");
 		return -EACCES;
 	}
 
@@ -736,9 +736,6 @@ int nvs_init(struct nvs_fs *fs, const char *dev_name)
 {
 
 	int rc;
-	//struct flash_pages_info info;
-	size_t pagesize;
-
 	k_mutex_init(&fs->nvs_lock);
 
 	/*fs->flash_device = device_get_binding(dev_name);
