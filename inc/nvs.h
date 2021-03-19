@@ -51,7 +51,7 @@ struct nvs_fs {
 	uint16_t sector_count;	/* amount of sectors in the filesystem */
 	bool ready;		/* is the filesystem initialized ? */
 
-	struct k_mutex nvs_lock;
+	// struct k_mutex nvs_lock; // todo change to freertos version
 	const struct device *flash_device;
 	const struct flash_parameters *flash_parameters;
 };

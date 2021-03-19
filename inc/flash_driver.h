@@ -9,6 +9,7 @@
 #define NVS_FLASH_H_
 
 #include <inttypes.h>
+#include <stdbool.h>
 
 struct flash_parameters {
 	const size_t write_block_size;
@@ -21,12 +22,16 @@ struct flash_pages_info {
 	uint32_t index;
 };
 
-#define FLASH_WRITE_BLOCK_SIZE 	4	/** 32bit writing. */
-#define FLASH_PAGE_SIZE			1024
+#define FLASH_WRITE_BLOCK_SIZE 	FLASH_TYPEPROGRAM_WORD	/** Choose TYPEPROGAM from HAL. */
+#define FLASH_ERASE_VALUE		0xFF
 
 const struct flash_parameters *flash_get_parameters();
-size_t flash_get_write_block_size();
-int flash_get_pagesize_by_offset(int offset, size_t *size);
+
+int flash_write_protection_set(bool lock);
+
+int flash_write(int offset, const void *data, size_t len);
+int flash_read(int offset, void *data, size_t len);
+int flash_erase(int offset, size_t size);
 
 
 #endif /* NVS_FLASH_H_ */

@@ -48,14 +48,14 @@ static int nvs_flash_al_wrt(struct nvs_fs *fs, uint32_t addr, const void *data,
 	offset += fs->sector_size * (addr >> ADDR_SECT_SHIFT);
 	offset += addr & ADDR_OFFS_MASK;
 
-	rc = flash_write_protection_set(fs->flash_device, false);
+	rc = flash_write_protection_set(false);
 	if (rc) {
 		/* flash protection set error */
 		return rc;
 	}
 	blen = len & ~(fs->flash_parameters->write_block_size - 1U);
 	if (blen > 0) {
-		rc = flash_write(fs->flash_device, offset, data8, blen);
+		rc = flash_write(offset, data8, blen);
 		if (rc) {
 			/* flash write error */
 			goto end;
@@ -69,8 +69,7 @@ static int nvs_flash_al_wrt(struct nvs_fs *fs, uint32_t addr, const void *data,
 		(void)memset(buf + len, fs->flash_parameters->erase_value,
 			fs->flash_parameters->write_block_size - len);
 
-		rc = flash_write(fs->flash_device, offset, buf,
-				 fs->flash_parameters->write_block_size);
+		rc = flash_write(offset, buf, fs->flash_parameters->write_block_size);
 		if (rc) {
 			/* flash write error */
 			goto end;
@@ -78,7 +77,7 @@ static int nvs_flash_al_wrt(struct nvs_fs *fs, uint32_t addr, const void *data,
 	}
 
 end:
-	(void) flash_write_protection_set(fs->flash_device, true);
+	(void) flash_write_protection_set(true);
 	return rc;
 }
 
@@ -93,7 +92,7 @@ static int nvs_flash_rd(struct nvs_fs *fs, uint32_t addr, void *data,
 	offset += fs->sector_size * (addr >> ADDR_SECT_SHIFT);
 	offset += addr & ADDR_OFFS_MASK;
 
-	rc = flash_read(fs->flash_device, offset, data, len);
+	rc = flash_read(offset, data, len);
 	return rc;
 
 }
@@ -128,9 +127,13 @@ static int nvs_flash_ate_rd(struct nvs_fs *fs, uint32_t addr,
 	return nvs_flash_rd(fs, addr, entry, sizeof(struct nvs_ate));
 }
 
+
+
 /* end of basic flash routines */
 
 /* advanced flash routines */
+
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
 /* nvs_flash_block_cmp compares the data in flash at addr to data
  * in blocks of size NVS_BLOCK_SIZE aligned to fs->write_block_size
@@ -238,19 +241,19 @@ static int nvs_flash_erase_sector(struct nvs_fs *fs, uint32_t addr)
 	offset = fs->offset;
 	offset += fs->sector_size * (addr >> ADDR_SECT_SHIFT);
 
-	rc = flash_write_protection_set(fs->flash_device, false);
+	rc = flash_write_protection_set(false);
 	if (rc) {
 		/* flash protection set error */
 		return rc;
 	}
-	LOG_DBG("Erasing flash at %lx, len %d", (long int) offset,
+	sh_log_printf(TAG, "Erasing flash at %lx, len %d", (long int) offset,
 		fs->sector_size);
-	rc = flash_erase(fs->flash_device, offset, fs->sector_size);
+	rc = flash_erase(offset, fs->sector_size);
 	if (rc) {
 		/* flash erase error */
 		return rc;
 	}
-	(void) flash_write_protection_set(fs->flash_device, true);
+	(void) flash_write_protection_set(true);
 	return 0;
 }
 
@@ -339,7 +342,7 @@ static int nvs_recover_last_ate(struct nvs_fs *fs, uint32_t *addr)
 	size_t ate_size;
 	int rc;
 
-	LOG_DBG("Recovering last ate from sector %d",
+	sh_log_printf(TAG, "Recovering last ate from sector %d",
 		(*addr >> ADDR_SECT_SHIFT));
 
 	ate_size = nvs_al_size(fs, sizeof(struct nvs_ate));
@@ -545,7 +548,7 @@ static int nvs_gc(struct nvs_fs *fs)
 		 */
 		if ((wlk_prev_addr == gc_prev_addr) && gc_ate.len) {
 			/* copy needed */
-			LOG_DBG("Moving %d, len %d", gc_ate.id, gc_ate.len);
+			sh_log_printf(TAG, "Moving %d, len %d", gc_ate.id, gc_ate.len);
 
 			data_addr = (gc_prev_addr & ADDR_SECT_MASK);
 			data_addr += gc_ate.offset;
@@ -585,7 +588,8 @@ static int nvs_startup(struct nvs_fs *fs)
 	uint16_t i, closed_sectors = 0;
 	uint8_t erase_value = fs->flash_parameters->erase_value;
 
-	k_mutex_lock(&fs->nvs_lock, K_FOREVER);
+	//k_mutex_lock(&fs->nvs_lock, K_FOREVER);
+	// todo MUTEX LOCK
 
 	ate_size = nvs_al_size(fs, sizeof(struct nvs_ate));
 	/* step through the sectors to find a open sector following
@@ -708,7 +712,8 @@ static int nvs_startup(struct nvs_fs *fs)
 	}
 
 end:
-	k_mutex_unlock(&fs->nvs_lock);
+	//k_mutex_unlock(&fs->nvs_lock);
+	// todo Mutex UNLOCK
 	return rc;
 }
 
@@ -736,7 +741,8 @@ int nvs_init(struct nvs_fs *fs, const char *dev_name)
 {
 
 	int rc;
-	k_mutex_init(&fs->nvs_lock);
+	//k_mutex_init(&fs->nvs_lock);
+	// Mutex Initial
 
 	/*fs->flash_device = device_get_binding(dev_name);
 	if (!fs->flash_device) {
@@ -797,7 +803,7 @@ size_t nvs_write(struct nvs_fs *fs, uint16_t id, const void *data, size_t len)
 	bool prev_found = false;
 
 	if (!fs->ready) {
-		LOG_ERR("NVS not initialized");
+		sh_log_printf(TAG, "NVS not initialized");
 		return -EACCES;
 	}
 
@@ -866,7 +872,8 @@ size_t nvs_write(struct nvs_fs *fs, uint16_t id, const void *data, size_t len)
 		required_space = data_size + ate_size;
 	}
 
-	k_mutex_lock(&fs->nvs_lock, K_FOREVER);
+//	k_mutex_lock(&fs->nvs_lock, K_FOREVER);
+	//todo Mutex Lock
 
 	gc_count = 0;
 	while (1) {
@@ -901,7 +908,8 @@ size_t nvs_write(struct nvs_fs *fs, uint16_t id, const void *data, size_t len)
 	}
 	rc = len;
 end:
-	k_mutex_unlock(&fs->nvs_lock);
+	//k_mutex_unlock(&fs->nvs_lock);
+// Mutex Unlcok
 	return rc;
 }
 
@@ -920,7 +928,7 @@ size_t nvs_read_hist(struct nvs_fs *fs, uint16_t id, void *data, size_t len,
 	size_t ate_size;
 
 	if (!fs->ready) {
-		LOG_ERR("NVS not initialized");
+		sh_log_printf(TAG, "NVS not initialized");
 		return -EACCES;
 	}
 
@@ -984,7 +992,7 @@ size_t nvs_calc_free_space(struct nvs_fs *fs)
 	size_t ate_size, free_space;
 
 	if (!fs->ready) {
-		LOG_ERR("NVS not initialized");
+		sh_log_printf(TAG, "NVS not initialized");
 		return -EACCES;
 	}
 
