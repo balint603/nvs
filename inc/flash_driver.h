@@ -22,7 +22,7 @@ struct flash_pages_info {
 	uint32_t index;
 };
 
-#define FLASH_WRITE_BLOCK_SIZE 	FLASH_TYPEPROGRAM_WORD	/** Choose TYPEPROGAM from HAL. */
+#define FLASH_WRITE_BLOCK_SIZE 	4	/** Choose TYPEPROGAM from HAL. */
 #define FLASH_ERASE_VALUE		0xFF
 
 const struct flash_parameters *flash_get_parameters();

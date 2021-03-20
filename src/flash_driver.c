@@ -15,7 +15,7 @@
 
 
 const struct flash_parameters FLASH_PARAMS = {
-		.write_block_size = FLASH_WRITE_BLOCK_SIZE,
+		.write_block_size = 8,
 		.erase_value = FLASH_ERASE_VALUE
 };
 
@@ -30,17 +30,18 @@ int flash_write_protection_set(bool lock) {
 int flash_write(int offset, const void *data, size_t len) {
 	if ( !data || !len )
 		return -1;
-	return HAL_FLASH_Program(FLASH_WRITE_BLOCK_SIZE, offset, *((uint64_t*)data));
+	return HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, offset, *((uint64_t*)data));
 }
 
 int flash_read(int offset, void *data, size_t len) {
-	if ( !data )
+	if ( !data || !len ) {
 		return -1;
+	}
 	if ( IS_FLASH_PROGRAM_ADDRESS(offset)
 	  && IS_FLASH_PROGRAM_ADDRESS(offset + len)) {
 		memcpy( data, (void *)(offset), len); // Random Flash memory access.
 	} else {
-		return -1;
+		return -2;
 	}
 	return 0;
 }

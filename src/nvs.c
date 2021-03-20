@@ -91,6 +91,8 @@ static int nvs_flash_rd(struct nvs_fs *fs, uint32_t addr, void *data,
 	offset += addr & ADDR_OFFS_MASK;
 
 	rc = flash_read(offset, data, len);
+	if ( rc )
+		pr_err("flash_driver read error!");
 	return rc;
 
 }
