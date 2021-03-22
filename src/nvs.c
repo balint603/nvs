@@ -9,9 +9,14 @@
 #include <errno.h>
 #include <flash_driver.h>
 #include <inttypes.h>
-#include <nvs.h>
+
+#include "nvs.h"
 #include "nvs_priv.h"
 #include "shell.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
+
+SemaphoreHandle_t g_mutex_h;
 
 /* basic routines */
 /* nvs_al_size returns size aligned to fs->write_block_size */
@@ -55,7 +60,7 @@ static int nvs_flash_al_wrt(struct nvs_fs *fs, uint32_t addr, const void *data,
 	if (blen > 0) {
 		rc = flash_write(offset, data8, blen);
 		if (rc) {
-			/* flash write error */
+			pr_info("NVS: flash write error");
 			goto end;
 		}
 		len -= blen;
@@ -69,7 +74,7 @@ static int nvs_flash_al_wrt(struct nvs_fs *fs, uint32_t addr, const void *data,
 
 		rc = flash_write(offset, buf, fs->flash_parameters->write_block_size);
 		if (rc) {
-			/* flash write error */
+			pr_info("NVS: flash write remaining error");
 			goto end;
 		}
 	}
@@ -588,8 +593,7 @@ static int nvs_startup(struct nvs_fs *fs)
 	uint16_t i, closed_sectors = 0;
 	uint8_t erase_value = fs->flash_parameters->erase_value;
 
-	//k_mutex_lock(&fs->nvs_lock, K_FOREVER);
-	// todo MUTEX LOCK
+	xSemaphoreTake(g_mutex_h, portMAX_DELAY);
 
 	ate_size = nvs_al_size(fs, sizeof(struct nvs_ate));
 	/* step through the sectors to find a open sector following
@@ -712,8 +716,7 @@ static int nvs_startup(struct nvs_fs *fs)
 	}
 
 end:
-	//k_mutex_unlock(&fs->nvs_lock);
-	// todo Mutex UNLOCK
+	xSemaphoreGive(g_mutex_h);
 	return rc;
 }
 
@@ -741,14 +744,11 @@ int nvs_init(struct nvs_fs *fs, const char *dev_name)
 {
 
 	int rc;
-	//k_mutex_init(&fs->nvs_lock);
-	// Mutex Initial
-
-	/*fs->flash_device = device_get_binding(dev_name);
-	if (!fs->flash_device) {
-		LOG_ERR("No valid flash device found");
-		return -ENXIO;
-	} */
+	g_mutex_h = xSemaphoreCreateMutex();
+	if ( !g_mutex_h ) {
+		pr_err("Cannot create mutex by NVS.");
+		return -ENOMEM;
+	}
 
 	fs->flash_parameters = flash_get_parameters();
 	if (fs->flash_parameters == NULL) {
@@ -872,8 +872,7 @@ size_t nvs_write(struct nvs_fs *fs, uint16_t id, const void *data, size_t len)
 		required_space = data_size + ate_size;
 	}
 
-//	k_mutex_lock(&fs->nvs_lock, K_FOREVER);
-	//todo Mutex Lock
+	xSemaphoreTake(g_mutex_h, portMAX_DELAY);
 
 	gc_count = 0;
 	while (1) {
@@ -908,8 +907,7 @@ size_t nvs_write(struct nvs_fs *fs, uint16_t id, const void *data, size_t len)
 	}
 	rc = len;
 end:
-	//k_mutex_unlock(&fs->nvs_lock);
-// Mutex Unlcok
+	xSemaphoreGive(g_mutex_h);
 	return rc;
 }
 

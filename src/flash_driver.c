@@ -9,6 +9,9 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include "stm32f0xx_hal.h"
 #include "stm32f0xx_hal_flash_ex.h"
 #include "flash_driver.h"
