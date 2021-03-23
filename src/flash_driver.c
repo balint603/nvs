@@ -18,7 +18,7 @@
 
 
 const struct flash_parameters FLASH_PARAMS = {
-		.write_block_size = 8,
+		.write_block_size = FLASH_WRITE_BLOCK_SIZE,
 		.erase_value = FLASH_ERASE_VALUE
 };
 
@@ -33,7 +33,28 @@ int flash_write_protection_set(bool lock) {
 int flash_write(int offset, const void *data, size_t len) {
 	if ( !data || !len )
 		return -1;
-	return HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, offset, *((uint64_t*)data));
+	if ( !(IS_FLASH_PROGRAM_ADDRESS(offset)
+	  && IS_FLASH_PROGRAM_ADDRESS(offset + len)) ) {
+		return -1;
+	}
+	HAL_StatusTypeDef res;
+	while ( len > 0 ) {
+		res = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, offset, *((uint64_t*)data));
+		switch ( res ) {
+			case HAL_BUSY:
+				HAL_Delay( 5 );
+				break;
+			case HAL_OK:
+				len -= FLASH_WRITE_BLOCK_SIZE;
+				data += FLASH_WRITE_BLOCK_SIZE;
+				offset += FLASH_WRITE_BLOCK_SIZE;
+				break;
+			default:
+				return res;
+				break;
+		}
+	}
+	return HAL_OK;
 }
 
 int flash_read(int offset, void *data, size_t len) {
